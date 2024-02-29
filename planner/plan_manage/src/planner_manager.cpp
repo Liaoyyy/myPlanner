@@ -56,7 +56,7 @@ namespace ego_planner
   {
     static int count = 0;//count保存重规划次数
     printf("\033[47;30m\n[drone %d replan %d]==============================================\033[0m\n", pp_.drone_id, count++);
-    
+
 
     //当局部目标点与起始点距离小于0.2m时，视为已经靠近目标点，不进行重规划
     if ((start_pt - local_target_pt).norm() < 0.2)
@@ -73,6 +73,7 @@ namespace ego_planner
     ros::Duration t_init, t_opt, t_refine;
 
     /*** STEP 1: INIT ***/
+    //TODO: ts是啥
     double ts = (start_pt - local_target_pt).norm() > 0.1 ? pp_.ctrl_pt_dist / pp_.max_vel_ * 1.5 : pp_.ctrl_pt_dist / pp_.max_vel_ * 5; // pp_.ctrl_pt_dist / pp_.max_vel_ is too tense, and will surely exceed the acc/vel limits
     vector<Eigen::Vector3d> point_set, start_end_derivatives;
     static bool flag_first_call = true, flag_force_polynomial = false;
@@ -91,6 +92,7 @@ namespace ego_planner
         PolynomialTraj gl_traj;
 
         double dist = (start_pt - local_target_pt).norm();
+        //从起始点到局部目标点总时间
         double time = pow(pp_.max_vel_, 2) / pp_.max_acc_ > dist ? sqrt(dist / pp_.max_acc_) : (dist - pow(pp_.max_vel_, 2) / pp_.max_acc_) / pp_.max_vel_ + 2 * pp_.max_vel_ / pp_.max_acc_;
 
         if (!flag_randomPolyTraj)
@@ -99,6 +101,7 @@ namespace ego_planner
         }
         else
         {
+          //随机插入点
           Eigen::Vector3d horizen_dir = ((start_pt - local_target_pt).cross(Eigen::Vector3d(0, 0, 1))).normalized();
           Eigen::Vector3d vertical_dir = ((start_pt - local_target_pt).cross(horizen_dir)).normalized();
           Eigen::Vector3d random_inserted_pt = (start_pt + local_target_pt) / 2 +
@@ -125,6 +128,7 @@ namespace ego_planner
           for (t = 0; t < time; t += ts)
           {
             Eigen::Vector3d pt = gl_traj.evaluate(t);
+            //两个点隔得太远了
             if ((last_pt - pt).norm() > pp_.ctrl_pt_dist * 1.5)
             {
               flag_too_far = true;

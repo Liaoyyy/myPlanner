@@ -42,9 +42,9 @@ namespace ego_planner
 
     /* callback */
     //给定时器
-    //exec_timer 每0.01s去检查当前状态，在其中也进行轨迹优化过程
+    //exec_timer 每0.01s去检查当前状态，在其中也进行轨迹优化过程 100Hz
     exec_timer_ = nh.createTimer(ros::Duration(0.01), &EGOReplanFSM::execFSMCallback, this);
-    //safety_timer_ 每0.05s去检测是否发生碰撞
+    //safety_timer_ 每0.05s去检测是否发生碰撞 20Hz
     safety_timer_ = nh.createTimer(ros::Duration(0.05), &EGOReplanFSM::checkCollisionCallback, this);
 
     //订阅视觉里程计话题信息，收到消息后执行odometryCallback函数
@@ -65,6 +65,7 @@ namespace ego_planner
 
     //发布B样条轨迹话题
     bspline_pub_ = nh.advertise<traj_utils::Bspline>("planning/bspline", 10);
+    //轨迹展示话题
     data_disp_pub_ = nh.advertise<traj_utils::DataDisp>("planning/data_display", 100);
 
 
@@ -516,7 +517,6 @@ namespace ego_planner
       break;
     }
 
-    //多机，不管
     case SEQUENTIAL_START: // for swarm
     {
       // cout << "id=" << planner_manager_->pp_.drone_id << " have_recv_pre_agent_=" << have_recv_pre_agent_ << endl;
@@ -808,8 +808,8 @@ namespace ego_planner
 
   /*** 
    * @description: 
-   * @param {bool} flag_use_poly_init
-   * @param {bool} flag_randomPolyTraj
+   * @param {bool} flag_use_poly_init 是否使用多项式初始化(rebountReplan中参数)
+   * @param {bool} flag_randomPolyTraj 是否使用随机多项式插入点
    * @return {*}
    */
   bool EGOReplanFSM::callReboundReplan(bool flag_use_poly_init, bool flag_randomPolyTraj)
@@ -836,6 +836,7 @@ namespace ego_planner
       bspline.traj_id = info->traj_id_;
 
       Eigen::MatrixXd pos_pts = info->position_traj_.getControlPoint();
+      //给vector分配内存并存入控制点
       bspline.pos_pts.reserve(pos_pts.cols());
       for (int i = 0; i < pos_pts.cols(); ++i)
       {
@@ -846,6 +847,7 @@ namespace ego_planner
         bspline.pos_pts.push_back(pt);
       }
 
+      //Knot为连接点
       Eigen::VectorXd knots = info->position_traj_.getKnot();
       // cout << knots.transpose() << endl;
       bspline.knots.reserve(knots.rows());
@@ -855,11 +857,13 @@ namespace ego_planner
       }
 
       /* 1. publish traj to traj_server */
+      //发布轨迹给traj_server中节点订阅，再由该轨迹得到速度、加速度等信息发送给px4
       bspline_pub_.publish(bspline);
 
       /* 2. publish traj to the next drone of swarm */
 
       /* 3. publish traj for visualization */
+      //可视化显示轨迹
       visualization_->displayOptimalList(info->position_traj_.get_control_points(), 0);
     }
 
