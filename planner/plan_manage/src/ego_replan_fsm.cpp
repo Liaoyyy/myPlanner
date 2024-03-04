@@ -10,6 +10,8 @@ namespace ego_planner
     have_target_ = false;               //是否接收到目标点
     have_odom_ = false;                 //是否收到里程计odom数据
     have_recv_pre_agent_ = false;
+    get_target_flag = 0;
+    reach_target_flag = 0;
 
     /*  fsm param  */
     //从launch文件中导入各变量值，若launch文件中未定义该变量，则使用最后一位默认值
@@ -51,14 +53,14 @@ namespace ego_planner
     odom_sub_ = nh.subscribe("odom_world", 1, &EGOReplanFSM::odometryCallback, this);
 
     //多机部分，不管
-    if (planner_manager_->pp_.drone_id >= 1)
-    {
-      string sub_topic_name = string("/drone_") + std::to_string(planner_manager_->pp_.drone_id - 1) + string("_planning/swarm_trajs");
-      swarm_trajs_sub_ = nh.subscribe(sub_topic_name.c_str(), 10, &EGOReplanFSM::swarmTrajsCallback, this, ros::TransportHints().tcpNoDelay());
-    }
+    // if (planner_manager_->pp_.drone_id >= 1)
+    // {
+    //   string sub_topic_name = string("/drone_") + std::to_string(planner_manager_->pp_.drone_id - 1) + string("_planning/swarm_trajs");
+    //   swarm_trajs_sub_ = nh.subscribe(sub_topic_name.c_str(), 10, &EGOReplanFSM::swarmTrajsCallback, this, ros::TransportHints().tcpNoDelay());
+    // }
 
-    string pub_topic_name = string("/drone_") + std::to_string(planner_manager_->pp_.drone_id) + string("_planning/swarm_trajs");
-    swarm_trajs_pub_ = nh.advertise<traj_utils::MultiBsplines>(pub_topic_name.c_str(), 10);
+    // string pub_topic_name = string("/drone_") + std::to_string(planner_manager_->pp_.drone_id) + string("_planning/swarm_trajs");
+    // swarm_trajs_pub_ = nh.advertise<traj_utils::MultiBsplines>(pub_topic_name.c_str(), 10);
 
     broadcast_bspline_pub_ = nh.advertise<traj_utils::Bspline>("planning/broadcast_bspline_from_planner", 10);
     broadcast_bspline_sub_ = nh.subscribe("planning/broadcast_bspline_to_planner", 100, &EGOReplanFSM::BroadcastBsplineCallback, this, ros::TransportHints().tcpNoDelay());
@@ -77,6 +79,7 @@ namespace ego_planner
               单独写一个node发布/move_base_simple/goal给出目标地点
       */
       waypoint_sub_ = nh.subscribe("/move_base_simple/goal", 1, &EGOReplanFSM::waypointCallback, this);
+      reach_target_pub_ = nh.advertise<std_msgs::Bool>("/target_publisher/reach_target_feedback",10);
     }
     //给定途径点
     else if (target_type_ == TARGET_TYPE::PRESET_TARGET)
@@ -242,6 +245,9 @@ namespace ego_planner
    **/
   void EGOReplanFSM::waypointCallback(const geometry_msgs::PoseStampedPtr &msg)
   {
+    ROS_INFO("Get Data!");
+    get_target_flag = 1;//已经收到target_publisher发来的数据
+
     //默认地面z坐标为-0.1,小于-0.1说明在地面以下，给点不成功
     if (msg->pose.position.z < -0.1)
       return;
@@ -546,10 +552,7 @@ namespace ego_planner
       break;
     }
 
-    /*** 
-     * @description: 已经通过minimum snap生成初始轨迹，当存在碰撞可能，需要进行优化
-     * @return {*}
-     */    
+    //已经通过minimum snap生成初始轨迹，当存在碰撞可能，需要进行优化
     case GEN_NEW_TRAJ:
     {
 
@@ -618,6 +621,17 @@ namespace ego_planner
             planNextWaypoint(wps_[wp_id_]);
           }
 
+          //已经到达目标地点
+          ROS_INFO("Reach the target!");
+          if(get_target_flag==1)
+          {
+            std_msgs::Bool target_fd;
+            target_fd.data=true;
+            get_target_flag=0;
+            reach_target_flag=1;
+            reach_target_pub_.publish(target_fd);
+          }
+          
           changeFSMExecState(WAIT_TARGET, "FSM");
           goto force_return;
           // return;
