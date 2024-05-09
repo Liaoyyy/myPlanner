@@ -50,7 +50,7 @@ namespace ego_planner
     PlanParameters pp_;
     LocalTrajData local_data_;
     GlobalTrajData global_data_; //存储全局数据，包括路径轨迹
-    GridMap::Ptr grid_map_;
+    GridMap::Ptr grid_map_;//栅格地图
     fast_planner::ObjPredictor::Ptr obj_predictor_;    
     SwarmTrajData swarm_trajs_buf_;
 

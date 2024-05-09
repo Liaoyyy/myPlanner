@@ -227,6 +227,7 @@ namespace ego_planner
     UniformBspline::parameterizeToBspline(ts, point_set, start_end_derivatives, ctrl_pts);
 
     vector<std::pair<int, int>> segments;
+    //生成控制点主要在这里，包括Astar搜索无碰撞轨迹
     segments = bspline_optimizer_->initControlPoints(ctrl_pts, true);
 
     t_init = ros::Time::now() - t_start;

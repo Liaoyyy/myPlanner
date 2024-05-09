@@ -75,9 +75,6 @@ namespace ego_planner
     if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
     {
       //订阅rviz中目标点信息，收到消息时执行回调函数waypointCallbacks
-      /*TODO: 后续如何实现到达指定地点完成投递？
-              单独写一个node发布/move_base_simple/goal给出目标地点
-      */
       waypoint_sub_ = nh.subscribe("/move_base_simple/goal", 1, &EGOReplanFSM::waypointCallback, this);
       reach_target_pub_ = nh.advertise<std_msgs::Bool>("/target_publisher/reach_target_feedback",10);
     }
